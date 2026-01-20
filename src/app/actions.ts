@@ -4,11 +4,7 @@ import { db } from "@/db";
 import { mountains, logs } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-
-// --- KONFIGURACJA TESTOWA ---
-// TODO: Później podmienimy to na prawdziwe pobieranie ID z sesji (np. NextAuth)
-
-const TEST_USER_ID = "44c72f94-93cd-40b3-947e-24460fdd06b4";
+import { createClient } from "@/utils/supabase/server";
 
 /**
  * Akcja dodawania nowego szczytu do bazy (Admin)
@@ -44,31 +40,32 @@ export async function createMountain(formData: FormData) {
  * Akcja logowania wejścia na szczyt (Użytkownik)
  */
 export async function logClimb(formData: FormData) {
+  // 1. Sprawdzamy, kim jest użytkownik
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    // Jeśli ktoś nie jest zalogowany, wyrzuć błąd lub przekieruj do logowania
+    throw new Error("Musisz być zalogowany, żeby dodać wpis!");
+  }
+
   const mountainId = Number(formData.get("mountainId"));
   const notes = formData.get("notes") as string;
-  const dateClimbed = formData.get("date") as string; // Format YYYY-MM-DD z input type="date"
-
-  if (
-    !TEST_USER_ID ||
-    TEST_USER_ID === "44c72f94-93cd-40b3-947e-24460fdd06b4"
-  ) {
-    throw new Error(
-      "Musisz ustawić TEST_USER_ID w pliku actions.ts, żeby to zadziałało!",
-    );
-  }
+  const dateClimbed = formData.get("date") as string;
 
   if (!mountainId || !dateClimbed) {
     throw new Error("Brak ID szczytu lub daty!");
   }
 
-  // Zapis logu w bazie (powiązanie User <-> Mountain)
+  // 2. Zapisujemy log używając PRAWDZIWEGO user.id
   await db.insert(logs).values({
-    userId: TEST_USER_ID,
+    userId: user.id, // <-- Tu jest zmiana!
     mountainId: mountainId,
     dateClimbed: dateClimbed,
     notes: notes,
   });
 
-  // Odświeżamy stronę konkretnego szczytu, żeby od razu zobaczyć wpis na liście
   revalidatePath(`/mountain/${mountainId}`);
 }
