@@ -9,9 +9,10 @@ import crypto from "crypto";
 
 /**
  * Akcja dodawania nowego szczytu do bazy (Admin)
+ * Obsługuje upload zdjęcia do Supabase Storage z unikalną nazwą pliku.
  */
 export async function createMountain(formData: FormData) {
-  const supabase = await createClient(); // Klient do uploadu
+  const supabase = await createClient();
 
   // Dane tekstowe
   const name = formData.get("name") as string;
@@ -31,21 +32,18 @@ export async function createMountain(formData: FormData) {
 
   // --- LOGIKA UPLOADU ---
   if (imageFile && imageFile.size > 0) {
-    // 1. Generujemy unikalną nazwę pliku (np. rysy-12345.jpg)
-    // Używamy nazwy szczytu + losowy ciąg, żeby uniknąć konfliktów
     const fileExt = imageFile.name.split(".").pop();
     const cleanName = name
       .toLowerCase()
-      .normalize("NFD") // Rozdziela litery od akcentów (ś -> s + ´)
-      .replace(/[\u0300-\u036f]/g, "") // Usuwa akcenty
-      .replace(/ł/g, "l") // Specjalny przypadek dla ł
-      .replace(/[^a-z0-9]/g, "-"); // Zamienia spacje i dziwne znaki na myślniki
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/ł/g, "l")
+      .replace(/[^a-z0-9]/g, "-");
 
     const fileName = `${cleanName}-${crypto.randomBytes(4).toString("hex")}.${fileExt}`;
 
-    // 2. Wysyłamy do Supabase Storage
     const { data, error } = await supabase.storage
-      .from("mountains") // Nazwa twojego bucketa
+      .from("mountains")
       .upload(fileName, imageFile, {
         cacheControl: "3600",
         upsert: false,
@@ -56,21 +54,21 @@ export async function createMountain(formData: FormData) {
       throw new Error("Nie udało się wgrać zdjęcia");
     }
 
-    // 3. Pobieramy publiczny URL
     const { data: publicUrlData } = supabase.storage
       .from("mountains")
       .getPublicUrl(fileName);
 
     imageUrl = publicUrlData.publicUrl;
   }
-  // ----------------------
+
+  // Zapis do bazy danych
   await db.insert(mountains).values({
     name,
     elevation,
     lat,
     lng,
     mountainRange,
-    imageUrl: imageUrl, // <-- Zapisujemy link
+    imageUrl: imageUrl,
   });
 
   revalidatePath("/");
@@ -79,34 +77,49 @@ export async function createMountain(formData: FormData) {
 
 /**
  * Akcja logowania wejścia na szczyt (Użytkownik)
+ * Zapisuje szczegółowy log wyprawy do tabeli logs.
  */
-export async function logClimb(formData: FormData) {
-  // 1. Sprawdzamy, kim jest użytkownik
+export async function logClimb(data: {
+  mountainId: number;
+  notes?: string;
+  date?: string;
+  isWinterEntry?: boolean;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    // Jeśli ktoś nie jest zalogowany, wyrzuć błąd lub przekieruj do logowania
-    throw new Error("Musisz być zalogowany, żeby dodać wpis!");
+    throw new Error("Musisz być zalogowany, aby dodać wpis!");
   }
 
-  const mountainId = Number(formData.get("mountainId"));
-  const notes = formData.get("notes") as string;
-  const dateClimbed = formData.get("date") as string;
+  const { mountainId, notes, date, isWinterEntry } = data;
 
-  if (!mountainId || !dateClimbed) {
-    throw new Error("Brak ID szczytu lub daty!");
+  if (!mountainId) {
+    throw new Error("Brak ID szczytu!");
   }
 
-  // 2. Zapisujemy log używając PRAWDZIWEGO user.id
-  await db.insert(logs).values({
-    userId: user.id, // <-- Tu jest zmiana!
-    mountainId: mountainId,
-    dateClimbed: dateClimbed,
-    notes: notes,
-  });
+  // Konwersja daty na obiekt Date (jeśli brak, używamy aktualnej)
+  const climbingDate = date ? new Date(date) : new Date();
 
-  revalidatePath(`/mountain/${mountainId}`);
+  try {
+    await db.insert(logs).values({
+      userId: user.id,
+      mountainId: mountainId,
+      dateClimbed: climbingDate,
+      notes: notes || "",
+      isWinterEntry: isWinterEntry ? 1 : 0,
+      // userPhotoUrl: null, // Tu można dodać upload zdjęcia użytkownika w przyszłości
+    });
+
+    // Odświeżamy strony, aby zmiany były widoczne natychmiast
+    revalidatePath(`/mountain/${mountainId}`);
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Błąd zapisu logu:", error);
+    return { success: false, error: "Nie udało się zapisać wejścia." };
+  }
 }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, MapPin, Mountain } from "lucide-react";
+import { LogVisitButton } from "@/components/LogVisitButton";
 
 export default async function MountainPage({
   params,
@@ -122,9 +123,7 @@ export default async function MountainPage({
                 Twoja aktywność
               </h4>
               <div className="space-y-4">
-                <Button className="w-full bg-slate-900 hover:bg-slate-800 h-12 text-lg">
-                  Zaloguj wejście
-                </Button>
+                <LogVisitButton mountainId={peak.id} />
                 <p className="text-xs text-center text-slate-400">
                   Zaloguj się, aby dodać ten szczyt do swojej listy zdobytych
                   trofeów.

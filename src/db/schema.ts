@@ -31,22 +31,28 @@ export const profiles = pgTable("profiles", {
 
 // --- Tabela Logów ---
 export const logs = pgTable("logs", {
-  id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+  id: serial("id").primaryKey(),
 
-  userId: uuid("user_id")
-    .references(() => profiles.id)
-    .notNull(),
+  // ID użytkownika z Supabase Auth (jako tekst, aby uniknąć problemów z kluczami obcymi)
+  userId: text("user_id").notNull(),
 
+  // Powiązanie ze szczytem
   mountainId: integer("mountain_id")
     .references(() => mountains.id)
     .notNull(),
 
-  dateClimbed: date("date_climbed")
-    .default(sql`CURRENT_DATE`)
+  // Szczegóły wyprawy
+  dateClimbed: timestamp("date_climbed", { withTimezone: true })
+    .defaultNow()
     .notNull(),
 
-  notes: text("notes"),
+  notes: text("notes"), // Miejsce na Twoją historię (np. "Straszna mgła, ale warto było!")
+
+  // Zdjęcie zrobione przez użytkownika (np. selfie na szczycie)
   userPhotoUrl: text("user_photo_url"),
+
+  // Czy wejście było zimowe? (Przykład dodatkowego pola)
+  isWinterEntry: integer("is_winter_entry").default(0),
 
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
