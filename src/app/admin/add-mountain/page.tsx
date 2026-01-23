@@ -75,6 +75,18 @@ export default function AddMountainPage() {
             className="w-full border p-2 rounded-md"
           />
         </div>
+        {/* Nowe pole: Zdjęcie */}
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Zdjęcie szczytu (Opcjonalne)
+          </label>
+          <input
+            name="image"
+            type="file"
+            accept="image/*"
+            className="w-full border p-2 rounded-md bg-white"
+          />
+        </div>
 
         <button
           type="submit"
