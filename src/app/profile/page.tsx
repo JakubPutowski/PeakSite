@@ -89,9 +89,7 @@ export default async function ProfilePage() {
             >
               <div>
                 <h3 className="font-bold text-lg">{log.mountainName}</h3>
-                <p className="text-sm text-gray-500">
-                  {log.date} • {log.elevation} m n.p.m.
-                </p>
+                <span>{new Date(log.date).toLocaleDateString("pl-PL")}</span>
                 {log.notes && (
                   <p className="mt-2 text-sm italic text-gray-700">
                     "{log.notes}"
