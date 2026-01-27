@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Mountain } from "lucide-react";
 import Image from "next/image";
+import { logs } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -14,6 +16,15 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
   const allMountains = await db.select().from(mountains);
+
+  let visitedMountainIds: number[] = [];
+  if (user) {
+    const userLogs = await db
+      .select({ mountainId: logs.mountainId })
+      .from(logs)
+      .where(eq(logs.userId, user.id));
+    visitedMountainIds = userLogs.map((l) => l.mountainId);
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -45,10 +56,12 @@ export default async function Home() {
       </nav>
 
       <main className="max-w-6xl mx-auto px-4 mt-8">
-        {/* Sekcja Mapy */}
         <Card className="overflow-hidden shadow-lg border-0 mb-10">
           <div className="h-[500px] w-full relative z-0">
-            <MapWrapper mountains={allMountains} />
+            <MapWrapper
+              mountains={allMountains}
+              visitedMountainIds={visitedMountainIds}
+            />
           </div>
         </Card>
 

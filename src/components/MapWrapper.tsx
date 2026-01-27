@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 
-// Tutaj robimy import dynamiczny z ssr: false
 const LeafletMap = dynamic(() => import("./LeafletMap"), {
   ssr: false,
   loading: () => (
@@ -20,6 +19,16 @@ type Mountain = {
   elevation: number;
 };
 
-export default function MapWrapper({ mountains }: { mountains: Mountain[] }) {
-  return <LeafletMap mountains={mountains} />;
+type MapWrapperProps = {
+  mountains: Mountain[];
+  visitedMountainIds?: number[]; // NOWY props
+};
+
+export default function MapWrapper({
+  mountains,
+  visitedMountainIds = [],
+}: MapWrapperProps) {
+  return (
+    <LeafletMap mountains={mountains} visitedMountainIds={visitedMountainIds} />
+  );
 }
