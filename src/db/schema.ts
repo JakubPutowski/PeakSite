@@ -27,6 +27,7 @@ export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(),
   email: text("email"),
   fullName: text("full_name"),
+  role: text("role").default("user"),
 });
 
 // --- Tabela Logów ---

@@ -9,12 +9,20 @@ import { MapPin, Mountain } from "lucide-react";
 import Image from "next/image";
 import { logs } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { profiles } from "../db/schema";
 
 export default async function Home() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, user.id),
+    });
+    isAdmin = profile?.role === "admin";
+  }
   const allMountains = await db.select().from(mountains);
 
   let visitedMountainIds: number[] = [];
@@ -70,7 +78,7 @@ export default async function Home() {
           <h2 className="text-2xl font-bold tracking-tight">
             Odkrywaj Szczyty
           </h2>
-          {user && (
+          {isAdmin && (
             <Link href="/admin/add-mountain">
               <Button variant="secondary" size="sm">
                 + Dodaj nowy

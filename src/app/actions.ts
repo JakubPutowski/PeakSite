@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import crypto from "crypto";
+import { eq } from "drizzle-orm";
+import { profiles } from "@/db/schema";
 
 /**
  * Akcja dodawania nowego szczytu do bazy (Admin)
@@ -13,6 +15,21 @@ import crypto from "crypto";
  */
 export async function createMountain(formData: FormData) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Musisz być zalogowany!");
+  }
+
+  const profile = await db.query.profiles.findFirst({
+    where: eq(profiles.id, user.id),
+  });
+
+  if (profile?.role !== "admin") {
+    throw new Error("Brak uprawnień administratora!");
+  }
 
   // Dane tekstowe
   const name = formData.get("name") as string;
