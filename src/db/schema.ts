@@ -9,7 +9,7 @@ import {
   uuid,
   bigint,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { InferSelectModel } from "drizzle-orm";
 
 // --- Tabela Szczytów ---
 export const mountains = pgTable("mountains", {
@@ -59,3 +59,7 @@ export const logs = pgTable("logs", {
     .defaultNow()
     .notNull(),
 });
+
+export type Mountain = InferSelectModel<typeof mountains>;
+export type Profile = InferSelectModel<typeof profiles>;
+export type Log = InferSelectModel<typeof logs>;  

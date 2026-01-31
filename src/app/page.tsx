@@ -1,138 +1,83 @@
-import { db } from "../db";
-import { mountains } from "../db/schema";
-import MapWrapper from "../components/MapWrapper";
+import { db } from "@/db";
+import { mountains, logs, profiles } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
+import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Mountain } from "lucide-react";
-import Image from "next/image";
-import { logs } from "../db/schema";
-import { eq } from "drizzle-orm";
-import { profiles } from "../db/schema";
+import MountainDashboard from "@/components/MountainDashboard";
+import { User } from "lucide-react";
 
 export default async function Home() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  let isAdmin = false;
-  if (user) {
-    const profile = await db.query.profiles.findFirst({
-      where: eq(profiles.id, user.id),
-    });
-    isAdmin = profile?.role === "admin";
-  }
+
+  // 1. Pobierz wszystkie szczyty
   const allMountains = await db.select().from(mountains);
 
-  let visitedMountainIds: number[] = [];
+  // 2. Pobierz ID zdobytych szczytów (jeśli user zalogowany)
+  let visitedIds: number[] = [];
+  let isAdmin = false;
+
   if (user) {
     const userLogs = await db
       .select({ mountainId: logs.mountainId })
       .from(logs)
       .where(eq(logs.userId, user.id));
-    visitedMountainIds = userLogs.map((l) => l.mountainId);
+
+    visitedIds = userLogs.map((log) => log.mountainId);
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, user.id));
+
+    isAdmin = profile?.role === "admin";
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      {/* Navbar (Tymczasowy, potem przeniesiemy do layout.tsx) */}
-      <nav className="bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Mountain className="h-6 w-6 text-slate-800" />
-          <span className="text-xl font-bold tracking-tight">PeakLog</span>
+    <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b pb-6">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+            Korona Gór Polski 🏔️
+          </h1>
+          <p className="text-gray-500 mt-2">
+            Zaloguj się, aby śledzić swoje postępy i zdobywać szczyty.
+          </p>
         </div>
 
-        <div className="flex items-center gap-4">
-          {user ? (
-            <>
-              <span className="text-sm text-gray-500 hidden sm:inline">
-                {user.email}
-              </span>
-              <Link href="/profile">
-                <Button variant="outline" size="sm">
-                  Mój Profil
-                </Button>
-              </Link>
-            </>
-          ) : (
-            <Link href="/login">
-              <Button size="sm">Zaloguj się</Button>
-            </Link>
-          )}
-        </div>
-      </nav>
-
-      <main className="max-w-6xl mx-auto px-4 mt-8">
-        <Card className="overflow-hidden shadow-lg border-0 mb-10">
-          <div className="h-[500px] w-full relative z-0">
-            <MapWrapper
-              mountains={allMountains}
-              visitedMountainIds={visitedMountainIds}
-            />
-          </div>
-        </Card>
-
-        {/* Sekcja Listy */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">
-            Odkrywaj Szczyty
-          </h2>
+        <div className="flex gap-3 items-center">
+          {/* Przycisk dla Admina */}
           {isAdmin && (
             <Link href="/admin/add-mountain">
               <Button variant="secondary" size="sm">
-                + Dodaj nowy
+                + Dodaj szczyt
+              </Button>
+            </Link>
+          )}
+          {user ? (
+            <Link href="/profile">
+              <Button variant="outline" className="gap-2 border-slate-300">
+                <User className="w-4 h-4" /> Twój Profil
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/login">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                Zaloguj się
               </Button>
             </Link>
           )}
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {allMountains.map((peak) => (
-            <Link key={peak.id} href={`/mountain/${peak.id}`} className="group">
-              <Card className="h-full hover:shadow-md transition-all duration-200 border-slate-200 group-hover:border-slate-400 overflow-hidden">
-                {/* Sekcja Obrazka */}
-                <div className="relative h-48 w-full bg-slate-100">
-                  {peak.imageUrl ? (
-                    <Image
-                      src={peak.imageUrl}
-                      alt={peak.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-300 bg-slate-50">
-                      <Mountain className="h-12 w-12" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Reszta karty */}
-                <CardHeader className="pb-2 pt-4">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg font-bold text-slate-800">
-                      {peak.name}
-                    </CardTitle>
-                    <MapPin className="h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
-                  </div>
-                  <p className="text-sm text-slate-500 font-medium">
-                    {peak.mountainRange || "Pasmo nieznane"}
-                  </p>
-                </CardHeader>
-
-                <CardContent>
-                  <div className="text-2xl font-bold text-slate-700">
-                    {peak.elevation}
-                    <span className="text-sm font-normal text-slate-400 ml-1">
-                      m n.p.m.
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </main>
-    </div>
+      {/* Dashboard */}
+      <MountainDashboard
+        mountains={allMountains}
+        visitedMountainIds={visitedIds}
+      />
+    </main>
   );
 }
