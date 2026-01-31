@@ -127,10 +127,7 @@ export async function logClimb(data: {
       dateClimbed: climbingDate,
       notes: notes || "",
       isWinterEntry: isWinterEntry ? 1 : 0,
-      // userPhotoUrl: null, // Tu można dodać upload zdjęcia użytkownika w przyszłości
     });
-
-    // Odświeżamy strony, aby zmiany były widoczne natychmiast
     revalidatePath(`/mountain/${mountainId}`);
     revalidatePath("/");
 
